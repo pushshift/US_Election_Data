@@ -45,6 +45,12 @@ state_abbrs_data = fetch_state_abbreviations()
 state_abbrs = list(state_abbrs_data.keys())
 state_election_data = {}
 
+# When running the script in the future, should ingested data that is already in the database
+# update the data in the DB with new data or should the new data be ignored (keeping the
+# existing data in the DB).
+
+update_data = True
+
 # Loop through each state and add the state level election data to state_election_data dict
 # using the state's abbreviation as the key for that state's data
 
@@ -55,7 +61,11 @@ for state_abbr in state_abbrs:
         county_fips_code = county['countyFipsCode']
         state = county['stateAbbreviation'].upper()
         json_data = json.dumps(county, escape_forward_slashes=False, ensure_ascii=False)
-        c.execute("INSERT OR IGNORE INTO county (id, retrieved_utc, election_year, state, data) VALUES (?,?,?,?,?)", (county_fips_code, retrieved_utc, 2020, state, json_data))
+        if update_data:
+            c.execute("INSERT OR REPLACE INTO county (id, retrieved_utc, election_year, state, data) VALUES (?,?,?,?,?)", (county_fips_code, retrieved_utc, 2020, state, json_data))
+        else:
+            c.execute("INSERT OR IGNORE INTO county (id, retrieved_utc, election_year, state, data) VALUES (?,?,?,?,?)", (county_fips_code, retrieved_utc, 2020, state, json_data))
+
     conn.commit()
     logging.info(f"Fetched data for {state_abbrs_data[state_abbr]}")
     time.sleep(1)
