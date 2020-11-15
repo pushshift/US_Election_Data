@@ -13,7 +13,7 @@ def create_sqlite_db(db_name="election_data"):
 
     conn = sqlite3.connect(f"{db_name}.db",timeout=60.0)
     c = conn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS county (id INTEGER PRIMARY KEY, retrieved_utc INTEGER, state TEXT, data TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS county (id INTEGER PRIMARY KEY, election_year INT, retrieved_utc INTEGER, state TEXT, data TEXT)')
     c.execute('PRAGMA journal_mode = wal')
     return conn
 
@@ -55,7 +55,7 @@ for state_abbr in state_abbrs:
         county_fips_code = county['countyFipsCode']
         state = county['stateAbbreviation'].upper()
         json_data = json.dumps(county, escape_forward_slashes=False, ensure_ascii=False)
-        c.execute("INSERT OR IGNORE INTO county (id, retrieved_utc, state, data) VALUES (?,?,?,?)", (county_fips_code, retrieved_utc, state, json_data))
+        c.execute("INSERT OR IGNORE INTO county (id, retrieved_utc, election_year, state, data) VALUES (?,?,?,?,?)", (county_fips_code, retrieved_utc, 2020, state, json_data))
     conn.commit()
     logging.info(f"Fetched data for {state_abbrs_data[state_abbr]}")
     time.sleep(1)
