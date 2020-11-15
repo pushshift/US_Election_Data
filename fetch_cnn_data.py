@@ -3,6 +3,19 @@
 import ujson as json
 import requests
 import time
+import sqlite3
+import logging
+logging.basicConfig(level=logging.INFO)
+
+
+def create_sqlite_db(db_name="election_data"):
+    '''Create a sqlite DB for election data'''
+
+    conn = sqlite3.connect(f"{db_name}.db",timeout=60.0)
+    c = conn.cursor()
+    c.execute('CREATE TABLE IF NOT EXISTS county (id INTEGER PRIMARY KEY, retrieved_utc INTEGER, state TEXT, data TEXT)')
+    c.execute('PRAGMA journal_mode = wal')
+    return conn
 
 
 def fetch_state_abbreviations():
@@ -24,6 +37,9 @@ def fetch_county_level_data(state_abbr=None):
         return r.json()
 
 
+# Create sqlite DB
+conn = create_sqlite_db(db_name="election_data")
+c = conn.cursor()
 
 state_abbrs_data = fetch_state_abbreviations()
 state_abbrs = list(state_abbrs_data.keys())
@@ -34,7 +50,14 @@ state_election_data = {}
 
 for state_abbr in state_abbrs:
     state_election_data[state_abbr] = fetch_county_level_data(state_abbr=state_abbr)
-    print(state_election_data)
+    retrieved_utc = int(time.time())
+    for county in state_election_data[state_abbr]:
+        county_fips_code = county['countyFipsCode']
+        state = county['stateAbbreviation'].upper()
+        json_data = json.dumps(county, escape_forward_slashes=False, ensure_ascii=False)
+        c.execute("INSERT OR IGNORE INTO county (id, retrieved_utc, state, data) VALUES (?,?,?,?)", (county_fips_code, retrieved_utc, state, json_data))
+    conn.commit()
+    logging.info(f"Fetched data for {state_abbrs_data[state_abbr]}")
     time.sleep(1)
 
 
